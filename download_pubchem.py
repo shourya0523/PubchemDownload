@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 
 # Configuration
-START_CID = 8000000  # Change this to your starting point
+START_CID = 5000000  # Change this to your starting point
 BATCH_SIZE = 5000    # How many to download per GitHub Actions run
 PROGRESS_FILE = "progress.json"
 
