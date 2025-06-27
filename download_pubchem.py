@@ -6,7 +6,7 @@ from datetime import datetime
 
 # Configuration
 START_CID = 5000000  # Change this to your starting point
-BATCH_SIZE = 5000    # How many to download per GitHub Actions run
+BATCH_SIZE = 10000    # How many to download per GitHub Actions run
 PROGRESS_FILE = "progress.json"
 
 def load_progress():
