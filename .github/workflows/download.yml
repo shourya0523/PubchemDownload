@@ -6,7 +6,11 @@ on:
   
   # Automatic trigger - runs every 6 hours
   schedule:
-    - cron: '0 */1 * * *'
+    - cron: '0 */6 * * *'
+
+permissions:
+  contents: write
+  actions: read
 
 jobs:
   download:
@@ -29,34 +33,57 @@ jobs:
       run: |
         pip install requests
     
-    # 4. Download previous data artifact (if exists)
-    - name: Download previous data
-      uses: actions/download-artifact@v4
+    # 4. Restore previous data from cache
+    - name: Restore cached data
+      uses: actions/cache@v3
       with:
-        name: pubchem-data
-        path: ./
-      continue-on-error: true
+        path: |
+          pubchem_downloads/
+          progress.json
+        key: pubchem-data-${{ github.run_number }}
+        restore-keys: |
+          pubchem-data-
     
     # 5. Run the downloader
     - name: Download PubChem compounds
       run: python download_pubchem.py
     
-    # 6. Upload data as artifact
-    - name: Upload data
-      uses: actions/upload-artifact@v4
+    # 5b. Debug - Check what files exist
+    - name: Check downloaded files
+      run: |
+        echo "=== Current directory ==="
+        ls -la
+        echo "=== Checking for downloads ==="
+        if [ -d "pubchem_downloads" ]; then
+          echo "Found pubchem_downloads directory"
+          echo "Number of files: $(find pubchem_downloads -name "*.json" | wc -l)"
+        else
+          echo "No pubchem_downloads directory found"
+        fi
+        if [ -f "progress.json" ]; then
+          echo "=== Progress file ==="
+          cat progress.json
+        else
+          echo "No progress.json found"
+        fi
+    
+    # 6. Save data to cache for next run
+    - name: Save data to cache
+      uses: actions/cache@v3
       with:
-        name: pubchem-data
+        path: |
+          pubchem_downloads/
+          progress.json
+        key: pubchem-data-${{ github.run_number }}
+    
+    # 7. Also upload as artifact for download
+    - name: Upload data as artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: pubchem-data-run-${{ github.run_number }}
         path: |
           pubchem_downloads/
           progress.json
         retention-days: 90
-    
-    # 7. Commit progress file (optional - for tracking)
-    - name: Commit progress
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add progress.json
-        git diff --quiet && git diff --staged --quiet || git commit -m "Update progress: $(date)"
-        git push
-      continue-on-error: true
+        if-no-files-found: warn
