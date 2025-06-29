@@ -1,0 +1,57 @@
+name: Parallel PubChem Download
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_batch:
+        description: 'Starting batch number'
+        required: false
+        default: '0'
+      total_batches:
+        description: 'Total number of batches to run'
+        required: false
+        default: '20'
+  
+  # Auto-run every 6 hours
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+    # Or more aggressive:
+    # - cron: '0 */4 * * *'  # Every 4 hours
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      matrix:
+        # Run 20 parallel jobs
+        batch: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+      max-parallel: 20  # GitHub allows up to 20 parallel jobs
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        pip install aiohttp aiofiles tqdm
+    
+    - name: Run parallel downloader
+      run: |
+        python parallel_downloader.py \
+          --batch-id ${{ matrix.batch }} \
+          --total-batches 20 \
+          --compounds-per-batch 50000
+      env:
+        BATCH_ID: ${{ matrix.batch }}
+    
+    - name: Upload batch data
+      uses: actions/upload-artifact@v4
+      with:
+        name: pubchem-batch-${{ matrix.batch }}
+        path: |
+          pubchem_downloads_batch_${{ matrix.batch }}/
+        retention-days: 90
